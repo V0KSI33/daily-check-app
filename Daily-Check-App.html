@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daily Check-App: Professional Multi-Test</title>
+    <style>
+        :root { --elnusa-red: #ce2029; --elnusa-grey: #222; }
+        body { 
+            margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: var(--elnusa-grey); color: white; 
+            user-select: none; overflow: hidden;
+        }
+        #app { 
+            width: 100%; height: 100%; text-align: center; display: flex; 
+            flex-direction: column; justify-content: center; align-items: center; 
+            cursor: pointer; transition: background-color 0.2s;
+        }
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 90%; max-width: 400px; margin-top: 20px; }
+        .color-box { 
+            height: 120px; display: flex; justify-content: center; align-items: center; 
+            border-radius: 15px; font-weight: bold; font-size: 1.3rem; color: #fff; 
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.1);
+        }
+        h1 { font-size: 2.5rem; margin: 10px; pointer-events: none; }
+        p { pointer-events: none; }
+        .instruksi { font-size: 1.2rem; background: rgba(255,255,255,0.15); padding: 12px 25px; border-radius: 50px; margin-bottom: 20px; pointer-events: none; }
+        .target-word { font-weight: 800; text-decoration: underline; color: #ffeb3b; }
+        .footer { position: absolute; bottom: 20px; font-size: 0.8rem; opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="app" onclick="handleGlobalClick()">
+    <div id="content">
+        <h1>DAILY CHECK-APP</h1>
+        <p>System Testing: Reaction & Concentration</p>
+        <div class="instruksi">Ketuk layar untuk MULAI</div>
+    </div>
+    <div class="footer">Graduate Trainee Project - Elnusa Petrofin</div>
+</div>
+
+<script>
+    // --- KONFIGURASI APPSHEET TEGAR ---
+    const CONFIG = {
+        appId: "d5d76776-2503-4577-8697-4a87c1898b56",
+        view: "Check-App",
+        table: "Log Checkup",
+        colReaction: "Reaction Time",
+        colStroopScore: "stroop test",
+        colStroopSpeed: "Kecepatan Stroop Test" 
+    };
+
+    const colors = [
+        { name: 'MERAH', hex: '#ff4d4d' },
+        { name: 'BIRU', hex: '#4d94ff' },
+        { name: 'HIJAU', hex: '#2ecc71' },
+        { name: 'KUNING', hex: '#f1c40f' }
+    ];
+
+    let state = 'START';
+    let reactionTimes = [];
+    let gridTargets = [];
+    let gridResults = { correct: 0 };
+    let startTime, timeoutId, gridStartTime;
+    let gridCount = 0;
+    const MAX_GRID = 5;
+
+    const app = document.getElementById('app');
+    const content = document.getElementById('content');
+
+    function handleGlobalClick() {
+        if (state === 'START') {
+            startReaction();
+        } else if (state === 'WAITING') {
+            tooEarly();
+        } else if (state === 'READY') {
+            finishReaction();
+        } else if (state === 'GRID_INTRO') {
+            state = 'GRID_PLAYING';
+            startGrid();
+        }
+    }
+
+    // --- REACTION TEST ---
+    function startReaction() {
+        state = 'WAITING';
+        app.style.background = '#ce2029';
+        content.innerHTML = `<h1>ROUND ${reactionTimes.length + 1} / 3</h1><p>Tunggu sampai warna HIJAU...</p>`;
+        let delay = Math.floor(Math.random() * 3000) + 2000;
+        timeoutId = setTimeout(() => {
+            state = 'READY';
+            app.style.background = '#32cd32';
+            content.innerHTML = "<h1>TEKAN!</h1>";
+            startTime = Date.now();
+        }, delay);
+    }
+
+    function tooEarly() {
+        clearTimeout(timeoutId);
+        state = 'START';
+        alert("Terlalu cepat! Fokus pada warna hijau.");
+        app.style.background = '#222';
+        content.innerHTML = `<h1>ULANGI</h1><p>Ketuk untuk mencoba lagi</p>`;
+    }
+
+    function finishReaction() {
+        let time = Date.now() - startTime;
+        reactionTimes.push(time);
+        if (reactionTimes.length < 3) {
+            state = 'START';
+            app.style.background = '#222';
+            content.innerHTML = `<h1>${time} ms</h1><p>Ketuk untuk Round ${reactionTimes.length + 1}</p>`;
+        } else {
+            showGridIntro();
+        }
+    }
+
+    // --- GRID TEST ---
+    function showGridIntro() {
+        state = 'GRID_INTRO';
+        app.style.background = '#222';
+        const avg = Math.round(reactionTimes.reduce((a, b) => a + b) / 3);
+        content.innerHTML = `<h1>REAKSI: ${avg}ms</h1><p>Lanjut ke Tes Konsentrasi.</p><div class="instruksi">Pilih warna KOTAK (Bukan Tulisan)</div><p>Ketuk untuk mulai</p>`;
+    }
+
+    function startGrid() {
+        gridStartTime = Date.now();
+        gridTargets = [...colors, colors[Math.floor(Math.random() * colors.length)]];
+        gridTargets.sort(() => 0.5 - Math.random());
+        nextGrid();
+    }
+
+    function nextGrid() {
+        if (gridCount >= MAX_GRID) {
+            finishAll();
+            return;
+        }
+        const target = gridTargets[gridCount];
+        const shuffledBoxes = [...colors].sort(() => 0.5 - Math.random());
+        const shuffledLabels = [...colors].sort(() => 0.5 - Math.random());
+
+        content.innerHTML = `
+            <div class="instruksi">Pilih KOTAK warna: <span class="target-word">${target.name}</span></div>
+            <div class="grid-container" onclick="event.stopPropagation()">
+                ${shuffledBoxes.map((c, i) => `
+                    <div class="color-box" style="background-color: ${c.hex}" onclick="checkGrid('${c.name}', '${target.name}')">
+                        ${shuffledLabels[i].name}
+                    </div>
+                `).join('')}
+            </div>
+            <p style="margin-top:20px; opacity:0.5">Soal ${gridCount + 1} dari ${MAX_GRID}</p>
+        `;
+    }
+
+    function checkGrid(clickedColor, targetColor) {
+        if (clickedColor === targetColor) gridResults.correct++;
+        gridCount++;
+        nextGrid();
+    }
+
+    // --- FINISH ---
+    function finishAll() {
+        state = 'FINISHED';
+        const avgReaction = Math.round(reactionTimes.reduce((a, b) => a + b) / 3);
+        
+        // REVISI: Menghitung rata-rata kecepatan pengerjaan dalam DETIK (2 desimal)
+        const totalGridTimeSeconds = (Date.now() - gridStartTime) / 1000;
+        const avgGridSpeed = (totalGridTimeSeconds / MAX_GRID).toFixed(2);
+        
+        app.style.background = '#111';
+        content.innerHTML = `<h1>SELESAI</h1><p>Avg Reaction: ${avgReaction}ms</p><p>Betul: ${gridResults.correct}/${MAX_GRID}</p><p>Avg Speed: ${avgGridSpeed} detik</p><p>Sinkronisasi ke AppSheet...</p>`;
+
+        const dataValues = {
+            [CONFIG.colReaction]: avgReaction,
+            [CONFIG.colStroopScore]: gridResults.correct,
+            [CONFIG.colStroopSpeed]: avgGridSpeed
+        };
+
+        const url = `https://www.appsheet.com/start/${CONFIG.appId}#control=${encodeURIComponent(CONFIG.view)}&table=${encodeURIComponent(CONFIG.table)}&defaults=${encodeURIComponent(JSON.stringify(dataValues))}`;
+        
+        setTimeout(() => { window.location.href = url; }, 2500);
+    }
+</script>
+</body>
+</html>
