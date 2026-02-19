@@ -22,11 +22,20 @@
             border-radius: 15px; font-weight: bold; font-size: 1.3rem; color: #fff; 
             text-shadow: 1px 1px 4px rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.1);
         }
-        h1 { font-size: 2.5rem; margin: 10px; pointer-events: none; }
-        p { pointer-events: none; }
-        .instruksi { font-size: 1.2rem; background: rgba(255,255,255,0.15); padding: 12px 25px; border-radius: 50px; margin-bottom: 20px; pointer-events: none; }
+        h1 { font-size: 2.2rem; margin: 10px; pointer-events: none; }
+        h2 { font-size: 1.8rem; margin: 10px; color: #ffeb3b; pointer-events: none; }
+        p { pointer-events: none; font-size: 1.1rem; }
+        .instruksi { 
+            font-size: 1.1rem; background: rgba(255,255,255,0.15); padding: 12px 25px; 
+            border-radius: 50px; margin-top: 25px; margin-bottom: 20px; pointer-events: none; 
+            border: 1px solid rgba(255,255,255,0.3); font-weight: bold;
+        }
         .target-word { font-weight: 800; text-decoration: underline; color: #ffeb3b; }
         .footer { position: absolute; bottom: 20px; font-size: 0.8rem; opacity: 0.5; pointer-events: none; }
+        .info-box {
+            background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; 
+            text-align: left; max-width: 85%; margin: 10px auto; line-height: 1.5; font-size: 0.95rem;
+        }
     </style>
 </head>
 <body>
@@ -34,8 +43,9 @@
 <div id="app" onclick="handleGlobalClick()">
     <div id="content">
         <h1>DAILY CHECK-APP</h1>
-        <p>System Testing: Reaction & Concentration</p>
-        <div class="instruksi">Ketuk layar untuk MULAI</div>
+        <p>Aplikasi Uji Kesiapan & Fokus AMT</p>
+        <p style="color: #f1c40f; font-size: 0.9rem;">*Status: Experimental Prototype</p>
+        <div class="instruksi">Ketuk untuk Lanjut ➔</div>
     </div>
     <div class="footer">Graduate Trainee Project - Elnusa Petrofin</div>
 </div>
@@ -58,7 +68,8 @@
         { name: 'KUNING', hex: '#f1c40f' }
     ];
 
-    let state = 'START';
+    // Perubahan State: Menambahkan jeda dan instruksi
+    let state = 'WELCOME'; 
     let reactionTimes = [];
     let gridTargets = [];
     let gridResults = { correct: 0 };
@@ -70,19 +81,43 @@
     const content = document.getElementById('content');
 
     function handleGlobalClick() {
-        if (state === 'START') {
+        if (state === 'WELCOME') {
+            showReactionIntro();
+        } else if (state === 'REACTION_INTRO') {
             startReaction();
         } else if (state === 'WAITING') {
             tooEarly();
         } else if (state === 'READY') {
             finishReaction();
-        } else if (state === 'GRID_INTRO') {
+        } else if (state === 'REACTION_RESULT') {
+            if (reactionTimes.length < 3) {
+                startReaction();
+            } else {
+                showStroopIntro();
+            }
+        } else if (state === 'STROOP_INTRO') {
             state = 'GRID_PLAYING';
             startGrid();
         }
     }
 
     // --- REACTION TEST ---
+    function showReactionIntro() {
+        state = 'REACTION_INTRO';
+        app.style.background = '#222';
+        content.innerHTML = `
+            <h2>1. TES REAKSI</h2>
+            <div class="info-box">
+                <ol style="padding-left: 20px; margin: 0;">
+                    <li style="margin-bottom: 10px;">Layar akan berwarna <b>MERAH</b>.</li>
+                    <li style="margin-bottom: 10px;">Fokus dan tunggu sampai layar berubah <b>HIJAU</b>.</li>
+                    <li>Segera sentuh layar <b>DI MANA SAJA</b> secepat mungkin!</li>
+                </ol>
+            </div>
+            <div class="instruksi">Ketuk untuk MULAI Tes ➔</div>
+        `;
+    }
+
     function startReaction() {
         state = 'WAITING';
         app.style.background = '#ce2029';
@@ -91,37 +126,53 @@
         timeoutId = setTimeout(() => {
             state = 'READY';
             app.style.background = '#32cd32';
-            content.innerHTML = "<h1>TEKAN!</h1>";
+            content.innerHTML = "<h1>SEKARANG!</h1><p>Sentuh layar di mana saja!</p>";
             startTime = Date.now();
         }, delay);
     }
 
     function tooEarly() {
         clearTimeout(timeoutId);
-        state = 'START';
-        alert("Terlalu cepat! Fokus pada warna hijau.");
+        state = 'REACTION_RESULT'; // Berhenti sejenak, jangan langsung mulai lagi
         app.style.background = '#222';
-        content.innerHTML = `<h1>ULANGI</h1><p>Ketuk untuk mencoba lagi</p>`;
+        content.innerHTML = `
+            <h1 style="color: #ff4d4d;">TERLALU CEPAT!</h1>
+            <p>Anda menyentuh layar sebelum hijau.</p>
+            <div class="instruksi">Ketuk untuk Mengulang Round ${reactionTimes.length + 1} ➔</div>
+        `;
     }
 
     function finishReaction() {
         let time = Date.now() - startTime;
         reactionTimes.push(time);
-        if (reactionTimes.length < 3) {
-            state = 'START';
-            app.style.background = '#222';
-            content.innerHTML = `<h1>${time} ms</h1><p>Ketuk untuk Round ${reactionTimes.length + 1}</p>`;
-        } else {
-            showGridIntro();
-        }
+        state = 'REACTION_RESULT'; // Memberikan jeda sebelum round berikutnya
+        app.style.background = '#222';
+        
+        let nextText = reactionTimes.length < 3 ? `Lanjut Round ${reactionTimes.length + 1}` : "Lanjut ke Tes Konsentrasi";
+        content.innerHTML = `
+            <h1>${time} ms</h1>
+            <p>Kecepatan Reaksi Anda</p>
+            <div class="instruksi">${nextText} ➔</div>
+        `;
     }
 
-    // --- GRID TEST ---
-    function showGridIntro() {
-        state = 'GRID_INTRO';
+    // --- GRID (STROOP) TEST ---
+    function showStroopIntro() {
+        state = 'STROOP_INTRO';
         app.style.background = '#222';
         const avg = Math.round(reactionTimes.reduce((a, b) => a + b) / 3);
-        content.innerHTML = `<h1>REAKSI: ${avg}ms</h1><p>Lanjut ke Tes Konsentrasi.</p><div class="instruksi">Pilih warna KOTAK (Bukan Tulisan)</div><p>Ketuk untuk mulai</p>`;
+        
+        content.innerHTML = `
+            <p style="color: #2ecc71; font-weight: bold;">Rata-rata Reaksi Anda: ${avg}ms</p>
+            <h2>2. TES KONSENTRASI</h2>
+            <div class="info-box">
+                <p style="margin-top:0;"><b>TUGAS ANDA:</b> Klik KOTAK yang warnanya sesuai permintaan, <b>ABAIKAN</b> tulisan di dalamnya!</p>
+                <div style="background: rgba(255,255,255,0.15); padding: 10px; border-radius: 8px; text-align: center; border: 1px dashed #fff;">
+                    <i>Contoh: Jika diminta kotak <span class="target-word">MERAH</span>,<br>klik kotak yang warnanya merah, meskipun tulisannya "BIRU".</i>
+                </div>
+            </div>
+            <div class="instruksi">Ketuk untuk MULAI Tes ➔</div>
+        `;
     }
 
     function startGrid() {
@@ -141,7 +192,9 @@
         const shuffledLabels = [...colors].sort(() => 0.5 - Math.random());
 
         content.innerHTML = `
-            <div class="instruksi">Pilih KOTAK warna: <span class="target-word">${target.name}</span></div>
+            <div class="instruksi" style="margin-top: 0; margin-bottom: 10px; padding: 10px 20px;">
+                Pilih KOTAK warna: <span class="target-word">${target.name}</span>
+            </div>
             <div class="grid-container" onclick="event.stopPropagation()">
                 ${shuffledBoxes.map((c, i) => `
                     <div class="color-box" style="background-color: ${c.hex}" onclick="checkGrid('${c.name}', '${target.name}')">
@@ -163,13 +216,17 @@
     function finishAll() {
         state = 'FINISHED';
         const avgReaction = Math.round(reactionTimes.reduce((a, b) => a + b) / 3);
-        
-        // REVISI: Menghitung rata-rata kecepatan pengerjaan dalam DETIK (2 desimal)
         const totalGridTimeSeconds = (Date.now() - gridStartTime) / 1000;
         const avgGridSpeed = (totalGridTimeSeconds / MAX_GRID).toFixed(2);
         
         app.style.background = '#111';
-        content.innerHTML = `<h1>SELESAI</h1><p>Avg Reaction: ${avgReaction}ms</p><p>Betul: ${gridResults.correct}/${MAX_GRID}</p><p>Avg Speed: ${avgGridSpeed} detik</p><p>Sinkronisasi ke AppSheet...</p>`;
+        content.innerHTML = `
+            <h1>SELESAI</h1>
+            <p>Rata-rata Reaksi: ${avgReaction}ms</p>
+            <p>Skor Konsentrasi: ${gridResults.correct}/${MAX_GRID} Benar</p>
+            <p>Kecepatan Pilih: ${avgGridSpeed} detik/soal</p>
+            <p style="color: #2ecc71; margin-top: 20px; font-weight: bold;">Menyimpan data ke AppSheet...</p>
+        `;
 
         const dataValues = {
             [CONFIG.colReaction]: avgReaction,
